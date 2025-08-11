@@ -18,8 +18,8 @@ import androidx.compose.ui.res.painterResource // For loading drawable resources
 import androidx.compose.ui.draw.clip // For clipping Composables to shapes
 import androidx.compose.foundation.Image // For displaying images
 import androidx.compose.foundation.shape.CircleShape // A circular shape for clipping
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue // For reading State delegates
+import androidx.compose.runtime.setValue // For writing to State delegates
 import androidx.compose.ui.geometry.Offset // For specifying coordinates in custom drawing
 import androidx.compose.ui.graphics.Color // For representing colors
 import androidx.compose.ui.platform.LocalConfiguration // To get information about the current device configuration (like screen width)
@@ -43,13 +43,14 @@ fun AppBar(drawerState: DrawerState, modifier: Modifier = Modifier) {
     // rememberCoroutineScope provides a CoroutineScope tied to this Composable's lifecycle.
     // It's used here to launch a coroutine for opening the drawer, which is a suspend function.
     val scope = rememberCoroutineScope()
-    // Column to arrange AppBar elements (though currently only a Row is used, Column allows future expansion).
+    // Column to arrange AppBar elements.
     Column {
         // Row arranges its children horizontally (menu icon and title).
         Row(
-            modifier = modifier // Apply the passed modifier.
+            modifier = modifier
                 .fillMaxWidth() // Makes the Row take the full width of its parent.
                 .background(Purple40), // Sets the background color of the AppBar.
+            verticalAlignment = Alignment.CenterVertically // Vertically align items in the Row
         ) {
             // IconButton for the menu action (opening the drawer).
             IconButton(
@@ -58,32 +59,24 @@ fun AppBar(drawerState: DrawerState, modifier: Modifier = Modifier) {
                     scope.launch {
                         drawerState.open() // Calls the suspend function to open the navigation drawer.
                     }
-                },
-                modifier = Modifier.align(Alignment.CenterVertically), // Aligns the icon button vertically within the Row.
+                }
             ) {
                 // Icon Composable for the menu (hamburger) icon.
                 Icon(
                     Icons.Outlined.Menu, // Uses the predefined outlined Menu icon.
                     tint = Color.White, // Sets the icon color to white.
                     contentDescription = "Open navigation drawer", // Accessibility description for the icon.
-                    modifier = Modifier
-                        .size(25.dp) // Sets the size of the icon.
-                        .align(Alignment.Bottom), // Aligns the icon to the bottom (might be unintentional, CenterVertically on IconButton is usually enough).
+                    modifier = Modifier.size(25.dp) // Sets the size of the icon.
                 )
             }
             // Text Composable for the application title.
             Text(
                 text = "Quizzify",
+                color = Color.White, // Ensure text color is visible on Purple40
                 style = MaterialTheme.typography.headlineSmall, // Applies a predefined text style.
-                modifier = Modifier.padding(12.dp) // Adds padding around the title.
+                modifier = Modifier.padding(start = 8.dp, top = 12.dp, bottom = 12.dp, end = 12.dp) // Adjusted padding
             )
         }
-        // Commented out section for a potential "Menu" subtitle or secondary title.
-//        Text(
-//            text = "Menu",
-//            style = MaterialTheme.typography.headlineSmall,
-//            modifier = Modifier.padding(10.dp).align(Alignment.CenterHorizontally)
-//        )
     }
 }
 
@@ -95,6 +88,7 @@ fun AppBar(drawerState: DrawerState, modifier: Modifier = Modifier) {
 // Parameters:
 //   onQuizSelected: Lambda function passed to MenuScreen, called when a quiz is selected.
 //   onLogout: Lambda function called when the user confirms logout from the drawer.
+//             This lambda is expected to be handled by the AppNavigator to trigger the logout sequence.
 //   onProfile: Lambda function called when the "Profile" item in the drawer is clicked.
 @Composable
 fun DrawerTab(onQuizSelected: (String) -> Unit, onLogout: () -> Unit, onProfile: () -> Unit) {
@@ -102,12 +96,13 @@ fun DrawerTab(onQuizSelected: (String) -> Unit, onLogout: () -> Unit, onProfile:
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     // LocalConfiguration.current provides access to device configuration, here used to get screen width.
     // Calculates the width of the drawer to be 75% of the screen width.
-    val dockerWidth = LocalConfiguration.current.screenWidthDp * 0.75
+    val drawerWidth = (LocalConfiguration.current.screenWidthDp * 0.75).dp // Correctly use .dp
     // `showDialog` is a state variable to control the visibility of the logout confirmation AlertDialog.
     var showDialog by remember { mutableStateOf(false) }
 
     // ModalNavigationDrawer is a Material 3 component that provides a standard navigation drawer.
     ModalNavigationDrawer(
+        drawerState = drawerState, // Pass the drawerState to control the drawer
         // `drawerContent` defines the content displayed inside the navigation drawer when it's open.
         drawerContent = {
             // ModalDrawerSheet is the container for the drawer's content.
@@ -115,7 +110,7 @@ fun DrawerTab(onQuizSelected: (String) -> Unit, onLogout: () -> Unit, onProfile:
                 drawerContainerColor = Color.Black, // Sets the background color of the drawer.
                 drawerTonalElevation = Dp.Hairline, // Sets a very subtle elevation for the drawer.
                 modifier = Modifier
-                    .width(dockerWidth.dp) // Sets the calculated width of the drawer.
+                    .width(drawerWidth) // Sets the calculated width of the drawer.
                     // `drawWithContent` allows custom drawing operations on top of or beneath the content.
                     .drawWithContent {
                         drawContent() // Draws the actual content of the ModalDrawerSheet first.
@@ -136,33 +131,33 @@ fun DrawerTab(onQuizSelected: (String) -> Unit, onLogout: () -> Unit, onProfile:
                         contentDescription = "User Profile Picture", // Accessibility description.
                         alignment = Alignment.TopStart,
                         modifier = Modifier
-                            .wrapContentWidth() // Wraps the width to the content size.
-                            .size(40.dp) // Sets the size of the image.
+                            .size(60.dp) // Slightly larger profile image
                             .clip(shape = CircleShape) // Clips the image to a circular shape.
                     )
-                    Spacer(modifier = Modifier.height(6.dp)) // Adds vertical spacing.
+                    Spacer(modifier = Modifier.height(12.dp)) // Adds vertical spacing.
 
                     // Text for the user's name.
                     Text(
-                        text = "John Doe!!", // TODO: Replace with actual user name.
+                        text = "John Doe", // TODO: Replace with actual user name.
                         color = Color.White,
+                        style = MaterialTheme.typography.titleMedium, // Using MaterialTheme typography
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                     )
                     // Text for the user's handle or email.
                     Text(
-                        text = "@JustMeHopeless", // TODO: Replace with actual user handle/email.
+                        text = "@JustJohn", // TODO: Replace with actual user handle/email.
                         color = Color.Gray,
+                        style = MaterialTheme.typography.bodySmall, // Using MaterialTheme typography
                         maxLines = 1, // Restricts the text to a single line.
                         overflow = TextOverflow.Ellipsis, // Adds "..." if the text overflows.
                         modifier = Modifier
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Column for displaying user stats (e.g., courses enrolled, quizzes done).
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-//                                horizontalArrangement = Arrangement.SpaceBetween // Commented out, might be for future layout changes.
                     ) {
                         // Row for "Courses Enrolled" stat.
                         Row {
@@ -170,6 +165,7 @@ fun DrawerTab(onQuizSelected: (String) -> Unit, onLogout: () -> Unit, onProfile:
                                 text = "3", // TODO: Replace with actual data.
                                 fontSize = 14.sp,
                                 color = Color.White,
+                                fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = " Courses Enrolled",
@@ -179,7 +175,7 @@ fun DrawerTab(onQuizSelected: (String) -> Unit, onLogout: () -> Unit, onProfile:
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        Spacer(modifier = Modifier.width(3.dp)) // Adds horizontal spacing (very small).
+                        Spacer(modifier = Modifier.height(4.dp)) // Spacing between stat items
 
                         // Row for "Quizzes done" stat.
                         Row {
@@ -187,6 +183,7 @@ fun DrawerTab(onQuizSelected: (String) -> Unit, onLogout: () -> Unit, onProfile:
                                 text = "16", // TODO: Replace with actual data.
                                 fontSize = 14.sp,
                                 color = Color.White,
+                                fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = " Quizzes done",
@@ -199,41 +196,36 @@ fun DrawerTab(onQuizSelected: (String) -> Unit, onLogout: () -> Unit, onProfile:
                     }
                 }
 
-                Spacer(modifier = Modifier.height(30.dp)) // Adds more vertical spacing before the navigation items.
+                Divider(color = Color.Gray, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 16.dp)) // Visual separator
 
                 // LazyColumn for displaying the list of navigation items (Profile, Logout).
-                // This allows the list to be scrollable if there are many items.
                 LazyColumn(
                     state = rememberLazyListState(), // Remembers the scroll state of the list.
-//                    verticalArrangement = Arrangement.Center, // Commented out, items will align to top by default.
                     modifier = Modifier
-                        .fillMaxWidth() // Takes full width.
-                        .fillMaxHeight() // Takes full available height within the drawer.
-                        .padding(20.dp) // Adds padding around the list items.
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp) // Horizontal padding for items
                 ) {
                     // `item` defines a single item in the LazyColumn.
                     item {
                         // TextButton for the "Profile" navigation action.
                         TextButton(
                             onClick = onProfile, // Calls the onProfile lambda when clicked.
+                            modifier = Modifier.fillMaxWidth() // Make button take full width for better touch target
                         ) {
-                            Row { // Arranges icon and text horizontally.
+                            Row(verticalAlignment = Alignment.CenterVertically) { // Arranges icon and text horizontally.
                                 Icon(
                                     Icons.Outlined.Person, // Profile icon.
                                     tint = Color.White,
                                     contentDescription = "Profile",
-                                    modifier = Modifier.size(25.dp),
+                                    modifier = Modifier.size(24.dp), // Standard icon size
                                 )
+                                Spacer(Modifier.width(16.dp)) // Space between icon and text
                                 Text(
                                     text = "Profile",
                                     color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 20.sp,
+                                    style = MaterialTheme.typography.titleMedium, // Consistent typography
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .height(50.dp) // Sets a fixed height for the text area (for consistent item size).
-                                        .padding(start = 20.dp) // Adds padding to the left of the text.
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -241,71 +233,65 @@ fun DrawerTab(onQuizSelected: (String) -> Unit, onLogout: () -> Unit, onProfile:
                     // `item` for the "Logout" navigation action.
                     item {
                         TextButton(
-                            onClick = { showDialog = true } // Sets showDialog to true to display the confirmation dialog.
-//                            onClick = onLogout, // Direct logout commented out, now uses confirmation dialog.
+                            onClick = { showDialog = true }, // Sets showDialog to true to display the confirmation dialog.
+                            modifier = Modifier.fillMaxWidth() // Make button take full width
                         ) {
-                            Row { // Arranges icon and text horizontally.
+                            Row(verticalAlignment = Alignment.CenterVertically) { // Arranges icon and text horizontally.
                                 Icon(
                                     Icons.Outlined.Logout, // Logout icon.
                                     tint = Color.White,
                                     contentDescription = "Logout",
+                                    modifier = Modifier.size(24.dp)
                                 )
+                                Spacer(Modifier.width(16.dp)) // Space between icon and text
                                 Text(
-                                    text = "Logout", color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 20.sp,
+                                    text = "Logout",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .height(50.dp)
-                                        .padding(start = 20.dp)
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
                     }
                 }
             }
-        },
-        drawerState = drawerState // Passes the remembered drawer state to the ModalNavigationDrawer.
+        }
     ) {
-        // This is the main content of the screen, displayed when the drawer is closed.
-        Column {
-            // Displays the AppBar, passing the drawerState to allow it to open the drawer.
-            AppBar(drawerState)
-            // Displays the MenuScreen, which is the primary content area (list of quizzes).
+        // Main content of the screen (outside the drawer)
+        Column(modifier = Modifier.fillMaxSize()) {
+            AppBar(drawerState = drawerState) // AppBar is part of the main content
             MenuScreen(
-                onQuizSelected = onQuizSelected, // Passes the lambda for quiz selection.
+                onQuizSelected = onQuizSelected // Pass the quiz selection handler to MenuScreen
             )
-            // Conditional rendering of the AlertDialog for logout confirmation.
-            // It's displayed only if `showDialog` is true.
+
+            // AlertDialog for logout confirmation
             if (showDialog) {
                 AlertDialog(
-                    onDismissRequest = { showDialog = false }, // Called when the user clicks outside the dialog or presses back. Hides the dialog.
-                    title = {
-                        Text(text = "Confirm Action") // Title of the dialog.
-                    },
-                    text = {
-                        Text(text = "Are you sure you want to Logout?") // Message in the dialog.
-                    },
+                    onDismissRequest = { showDialog = false },
+                    title = { Text(text = "Confirm Logout") },
+                    text = { Text(text = "Are you sure you want to log out?") },
                     confirmButton = {
-                        // Button for the "Logout" (confirm) action.
                         Button(
-                            onClick = onLogout, // Calls the onLogout lambda when clicked.
-                            colors = ButtonDefaults.buttonColors(containerColor = Purple40) // Sets button color.
+                            onClick = {
+                                showDialog = false // Dismiss dialog
+                                onLogout()      // This calls the lambda passed from AppNavigator
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Purple40) // Use theme color
                         ) {
-                            Text("Logout")
+                            Text("Logout", color = Color.White)
                         }
                     },
                     dismissButton = {
-                        // TextButton for the "Dismiss" (cancel) action.
                         TextButton(
-                            onClick = {
-                                showDialog = false // Hides the dialog.
-                            }
+                            onClick = { showDialog = false }
                         ) {
-                            Text("Dismiss", color = Orange) // Sets dismiss button text color.
+                            Text("Cancel", color = Orange) // Use theme or accent color
                         }
-                    }
+                    },
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant, // Dialog background
+                    titleContentColor = MaterialTheme.colorScheme.onSurfaceVariant, // Dialog title text color
+                    textContentColor = MaterialTheme.colorScheme.onSurfaceVariant // Dialog body text color
                 )
             }
         }

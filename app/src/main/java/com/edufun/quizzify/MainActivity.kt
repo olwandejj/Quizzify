@@ -3,6 +3,7 @@ package com.edufun.quizzify
 // Import for ProfileScreen - assuming this is a composable function defined elsewhere.
 import ProfileScreen
 // Android OS and Activity specific imports.
+import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler // Import for handling back button presses in Compose.
@@ -30,6 +31,7 @@ import com.edufun.quizzify.ui.theme.QuizzifyTheme
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween // Animation timing function.
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 // Kotlin Coroutines for asynchronous operations.
 import kotlinx.coroutines.delay // Suspends a coroutine for a specified time.
 
@@ -63,13 +65,12 @@ class MainActivity : ComponentActivity() {
 // Sealed class AppScreen defines the different screens or destinations in the application.
 // Using a sealed class ensures that all possible screen types are known at compile time.
 sealed class AppScreen {
+    object Login : AppScreen()     // Represents the login screen.
+    object Register : AppScreen()  // Represents the registration screen.
     object Menu : AppScreen()      // Represents the main menu screen (home screen).
     object Quiz : AppScreen()      // Represents the quiz taking screen.
     object Profile : AppScreen()   // Represents the user profile screen.
-    object Loading : AppScreen()   // Represents a loading/transition screen (e.g., for logout).
-    // Removed:
-    // object Login : AppScreen()
-    // object Register : AppScreen()
+    object Loading : AppScreen()   // Represents a loading/transition screen.
 }
 
 // AppNavigator Composable function manages the navigation flow and transitions between different AppScreen destinations.
@@ -82,76 +83,83 @@ sealed class AppScreen {
 @Composable
 fun AppNavigator(viewModel: QuizzifyViewModel = viewModel()) {
     // `currentScreen` is a mutable state variable that holds the current screen being displayed.
-    // It now starts directly with the Menu screen.
-    var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.Menu) } // MODIFIED: Start with Menu
+    // It now starts with the Login screen.
+    var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.Login) }
     // `isLoggingOut` is a state variable to manage the visual state during logout.
     var isLoggingOut by remember { mutableStateOf(false) }
-    // Removed `isLoggingIn` as it's no longer needed for initial app load.
+    // `isLoading` can be a general loading state, e.g., after login before showing menu.
+    var isLoading by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     // BackHandler is a Composable that allows intercepting the system back button press.
-    // It's enabled for screens other than the initial Menu screen (or handle as needed).
-    BackHandler(enabled = currentScreen != AppScreen.Menu) { // MODIFIED: Adjust condition if Menu is the absolute start
+    BackHandler(enabled = currentScreen != AppScreen.Login && currentScreen != AppScreen.Menu) {
         // Defines custom back navigation logic based on the current screen.
         when (currentScreen) {
-            // is AppScreen.Menu -> { /* App should exit or no action if it's the root */ } // Or handle as needed
-            is AppScreen.Quiz -> currentScreen = AppScreen.Menu    // From Quiz, go back to Menu.
-            is AppScreen.Profile -> currentScreen = AppScreen.Menu // From Profile, go back to Menu.
-            else -> { /* No custom action for other screens, or define specific back navigation */ }
+            is AppScreen.Quiz -> currentScreen = AppScreen.Menu      // From Quiz, go back to Menu.
+            is AppScreen.Profile -> currentScreen = AppScreen.Menu   // From Profile, go back to Menu.
+            is AppScreen.Register -> currentScreen = AppScreen.Login // From Register, go back to Login.
+            else -> { /* No custom action for other screens by default, app will exit if on Menu or Login */ }
         }
+    }
+    // Specific BackHandler for Login screen to exit the app
+    BackHandler(enabled = currentScreen == AppScreen.Login) {
+        (context as? Activity)?.finish()
     }
 
-    // Conditional rendering based on the `isLoggingOut` state.
-    if (isLoggingOut) {
+
+    // Conditional rendering based on the `isLoggingOut` or `isLoading` state.
+    if (isLoggingOut || isLoading) {
         LoadingScreen() // Display the LoadingScreen Composable.
-        // LaunchedEffect is used to run a side effect (like a coroutine) when `Unit` (or any key) changes or on initial composition.
-        // Here, it's used to simulate a delay for the logout process.
         LaunchedEffect(Unit) {
             delay(1500) // Suspend for 1.5 seconds.
-            isLoggingOut = false // Reset the logging out state.
-            // After logout, you might want to exit the app or navigate to a specific state.
-            // Since login is removed, navigating to Menu might be redundant if the app exits on back from Menu.
-            // For now, let's assume logout should also go to Menu or you might decide to close the app.
-            // currentScreen = AppScreen.Menu // Or handle app exit
-            // For simplicity, if logout is the only way to get to a "loading" state,
-            // we might want to close the activity after logout if there's no screen before Menu.
-            // This depends on desired app flow post-logout without a login screen.
-            // If the app should exit on logout, you'd call `(LocalContext.current as? Activity)?.finish()`
-            // For now, let's keep it simple and assume it stays on the Menu or the app is closed via back press.
+            if (isLoggingOut) {
+                isLoggingOut = false
+                currentScreen = AppScreen.Login // Navigate to Login after logout.
+            }
+            if (isLoading) {
+                isLoading = false
+                currentScreen = AppScreen.Menu // Navigate to Menu after initial loading (e.g., after login).
+            }
         }
-    }
-    // Removed `else if (isLoggingIn)` block.
-    else {
+    } else {
         // AnimatedContent provides animations when its `targetState` (currentScreen) changes.
         AnimatedContent(
             targetState = currentScreen,
             // `transitionSpec` defines how the content enters and exits.
             transitionSpec = {
                 // Custom transitions based on the target and initial states.
-                if (targetState is AppScreen.Profile && initialState !is AppScreen.Profile) {
-                    slideInHorizontally(
-                        initialOffsetX = { it }, animationSpec = tween(500)
-                    ) with slideOutHorizontally(
-                        targetOffsetX = { -it / 2 }, animationSpec = tween(500)
-                    )
-                } else if (initialState is AppScreen.Profile && targetState != AppScreen.Profile) {
-                    slideInHorizontally(
-                        initialOffsetX = { -it }, animationSpec = tween(500)
-                    ) with slideOutHorizontally(
-                        targetOffsetX = { it }, animationSpec = tween(500)
-                    )
-                } else if (targetState is AppScreen.Quiz && initialState !is AppScreen.Quiz) {
-                    slideInVertically(initialOffsetY = { it }, animationSpec = tween(500)) with
-                            slideOutVertically(targetOffsetY = { it }, animationSpec = tween(500))
-                }
-                // Fade transitions for loading screen interactions (now only for logout if kept).
-                else if (initialState is AppScreen.Menu && targetState is AppScreen.Loading) { // e.g. logging out
-                    fadeIn(animationSpec = tween(500)) with fadeOut(animationSpec = tween(500))
-                } else if (initialState is AppScreen.Loading && targetState is AppScreen.Menu) { // e.g. after logout loading
-                    fadeIn(animationSpec = tween(500)) with fadeOut(animationSpec = tween(500))
-                }
-                // Default fade transition for other screen changes.
-                else {
-                    fadeIn(animationSpec = tween(300)) with fadeOut(animationSpec = tween(300))
+                when {
+                    // Login/Register to Menu
+                    (initialState is AppScreen.Login || initialState is AppScreen.Register) && targetState is AppScreen.Menu ->
+                        slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(500)) with
+                                slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(500))
+                    // Menu to Login (Logout)
+                    initialState is AppScreen.Menu && targetState is AppScreen.Login ->
+                        slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(500)) with
+                                slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(500))
+                    // To Profile
+                    targetState is AppScreen.Profile && initialState !is AppScreen.Profile ->
+                        slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(500)) with
+                                slideOutHorizontally(targetOffsetX = { -it / 2 }, animationSpec = tween(500))
+                    // From Profile
+                    initialState is AppScreen.Profile && targetState !is AppScreen.Profile ->
+                        slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(500)) with
+                                slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(500))
+                    // To Quiz
+                    targetState is AppScreen.Quiz && initialState !is AppScreen.Quiz ->
+                        slideInVertically(initialOffsetY = { it }, animationSpec = tween(500)) with
+                                slideOutVertically(targetOffsetY = { -it / 2 }, animationSpec = tween(500)) // Corrected exit
+                    // From Quiz
+                    initialState is AppScreen.Quiz && targetState !is AppScreen.Quiz ->
+                        slideInVertically(initialOffsetY = { -it }, animationSpec = tween(500)) with // Corrected entry
+                                slideOutVertically(targetOffsetY = { it }, animationSpec = tween(500))
+
+                    // Transitions for Loading screen (e.g., during login or logout)
+                    targetState is AppScreen.Loading || initialState is AppScreen.Loading ->
+                        fadeIn(animationSpec = tween(500)) with fadeOut(animationSpec = tween(500))
+                    // Default fade transition for other screen changes.
+                    else ->
+                        fadeIn(animationSpec = tween(300)) with fadeOut(animationSpec = tween(300))
                 }
             },
             label = "AppScreenAnimation" // Added label for AnimatedContent
@@ -163,9 +171,24 @@ fun AppNavigator(viewModel: QuizzifyViewModel = viewModel()) {
             ) {
                 // `when` expression to determine which Composable function to display based on the `targetScreen`.
                 when (targetScreen) {
-                    // Removed: AppScreen.Login case
-                    // Removed: AppScreen.Register case
-                    is AppScreen.Menu -> DrawerTab( // Assuming DrawerTab is your main menu Composable.
+                    is AppScreen.Login -> LoginScreen(
+                        onLogin = {
+                            // TODO: Implement actual login logic here
+                            // For now, simulate login and go to loading then menu
+                            isLoading = true // Show loading screen
+                        },
+                        onGoToRegister = { currentScreen = AppScreen.Register },
+                        onForgotPassword = { /* TODO: Handle forgot password */ }
+                    )
+                    is AppScreen.Register -> RegisterScreen(
+                        onRegister = {
+                            // TODO: Implement actual registration logic here
+                            // For now, simulate registration and go to loading then menu
+                            isLoading = true // Show loading screen
+                        },
+                        onBackToLogin = { currentScreen = AppScreen.Login }
+                    )
+                    is AppScreen.Menu -> DrawerTab(
                         onQuizSelected = { quizName ->
                             viewModel.loadQuiz(quizName) // Loads the selected quiz data in the ViewModel.
                             currentScreen = AppScreen.Quiz // Navigates to the Quiz screen.
