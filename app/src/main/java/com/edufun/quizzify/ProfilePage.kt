@@ -32,13 +32,9 @@ data class quizHistoryDetail(
 
 // Composable function to provide a sample list of quiz history details.
 // This is currently using hardcoded data.
-// TODO: Configure Firebase - This indicates that quiz history should eventually be fetched from Firebase.
 @Composable
 fun allQuizHistory(): List<quizHistoryDetail> {
-    /*
-   * TODO: Add allQuizHistory to QuizzifyViewModel.kt - Suggestion to move this data logic
-   *       into the ViewModel for better separation of concerns and data management.
-   * */
+
     return listOf(
         quizHistoryDetail(
             "General Knowledge",
