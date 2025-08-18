@@ -42,7 +42,13 @@ fun ResultScreen(score: Int, onRestart: () -> Unit) {
         // Button Composable that allows the user to restart the quiz.
         Button(
             onClick = onRestart, // Specifies the lambda function to be executed when the button is clicked.
-            colors = ButtonDefaults.buttonColors(containerColor = Orange) // Sets the button's background color using a custom color (Orange).
+            colors = ButtonDefaults.buttonColors(containerColor = Orange),
+            modifier= Modifier.padding(bottom=8.dp)// Sets the button's background color using a custom color (Orange).
+        ) { Text(text="Try Again")
+        }
+        OutlinedButton(
+            onClick=onRestart,
+            modifier=Modifier.padding(top=8.dp)
         ) {
             // Text Composable to display the label of the button.
             Text(text = "Return to Home")
